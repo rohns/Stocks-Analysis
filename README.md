@@ -1,2 +1,2 @@
 # Stocks-Analysis
-Analysis of selected stocks such as Walmart, Visa, and 3M using time series analysis 
+Analyzing and visualizing selected stocks prices using time series analysis 
