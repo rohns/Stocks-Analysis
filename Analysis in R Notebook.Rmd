@@ -1,0 +1,906 @@
+---
+title: "Stock Analysis R Notebook"
+output: html_notebook: default
+---
+
+```{r}
+library("quantmod")
+library("TTR")
+library("PerformanceAnalytics")
+```
+
+
+
+
+```{r}
+#get data
+getSymbols("DJI",from='2011-01-01',to='2021-12-31')
+
+#SMA
+chartSeries(DJI,
+            theme=chartTheme('white'))
+addSMA(n=100,on=1,col = "blue")
+addSMA(n=300,on=1,col = "red")
+
+#EMA
+chartSeries(DJI,
+            theme=chartTheme('white'))
+addEMA(n=100,on=1,col = "blue")
+addEMA(n=300,on=1,col = "red")
+
+#BBands
+chartSeries(DJI,
+            theme=chartTheme('white'))
+addBBands(n=100,sd=2)
+
+#ROC
+chartSeries(DJI,
+            theme = chartTheme("white"))
+addMomentum(n=300)
+
+#MACD
+chartSeries(DJI,
+            theme = chartTheme("white"))
+addMACD(fast=12,slow=26,signal=9,type="EMA")
+
+#RSI
+chartSeries(DJI,
+            theme = chartTheme("white"))
+addRSI(n=14,maType="EMA")
+
+
+```
+
+
+
+
+#Visa
+```{r}
+#get data
+getSymbols("V",from='2011-01-01',to='2021-12-31')
+
+#SMA
+chartSeries(V,
+            theme=chartTheme('white'))
+addSMA(n=100,on=1,col = "blue")
+addSMA(n=300,on=1,col = "red")
+
+#EMA
+chartSeries(V,
+            theme=chartTheme('white'))
+addEMA(n=100,on=1,col = "blue")
+addEMA(n=300,on=1,col = "red")
+
+#BBands
+chartSeries(V,
+            theme=chartTheme('white'))
+addBBands(n=100,sd=2)
+
+#ROC
+chartSeries(V,
+            theme = chartTheme("white"))
+addROC(n=20)
+
+#MACD
+chartSeries(V,
+            theme = chartTheme("white"))
+addMACD(fast=12,slow=26,signal=9,type="EMA")
+
+#RSI
+chartSeries(V,
+            theme = chartTheme("white"))
+addRSI(n=14,maType="EMA")
+
+
+
+#generate buying signal based on filter rule
+price <- Cl(V) # close price
+r <- price/Lag(price) - 1 # % price change
+delta <-0.005 #threshold
+signal <-c(0) # first date has no signal
+
+#Loop over all trading days (except the first)
+for (i in 2: length(price)){
+  if (r[i] > delta){
+    signal[i]<- 1
+  } else
+    signal[i]<- 0
+}
+
+# Assign time to action variable using reclass;
+signal<-reclass(signal,price)
+
+# Charting with Trading rule
+chartSeries(V,
+            type = 'line',
+            theme=chartTheme('white'))
+addTA(signal,type='S',col='red')
+
+trade1 <- Lag(signal,1) # trade based on yesterday signal
+
+ret<-dailyReturn(V)*trade1
+names(ret)<-"filter"
+
+#Performance Summary
+charts.PerformanceSummary(ret, main="VISA - Naive Buy Approach")
+
+
+
+#RSI
+day <-14
+price <- Cl(V)
+signal <- c()                    #initialize vector
+rsi <- RSI(price, day)     #rsi is the lag of RSI
+signal [1:day+1] <- 0            #0 because no signal until day+1
+
+for (i in (day+1): length(price)){
+  if (rsi[i] < 30){             #buy if rsi < 30
+    signal[i] <- 1
+  }else {                       #no trade all if rsi > 30
+    signal[i] <- 0
+  }
+}
+signal<-reclass(signal,Cl(V))
+trade2 <- Lag(signal)
+
+#construct a new variable ret1
+ret1 <- dailyReturn(V)*trade1
+names(ret1) <- 'Naive'
+# construct a new variable ret2
+ret2 <- dailyReturn(V)*trade2
+names(ret2) <- 'RSI'
+
+retall <- cbind(ret1, ret2)
+charts.PerformanceSummary(retall, 
+                          main="VISA - Naive v.s. RSI")
+
+
+n <- 14
+delta<-0.005
+price <- Cl(V)         
+r <- price/Lag(price) - 1    
+rsi <- RSI(price, n) 
+signal <-c()    # first signal is NA
+signal[1:n] <-0
+
+# Generate Trading Signal
+for (i in (n+1):length(price)){
+    if (r[i] > delta){
+         signal[i]<- 1
+    } else if (rsi[i] > 70){
+         signal[i]<- -1
+    } else
+         signal[i]<- 0
+}
+signal<-reclass(signal,price)
+
+
+## Apply Trading Rule
+trade3 <- Lag(signal)
+ret3<-dailyReturn(V)*trade3 
+names(ret3) <- 'Combine'
+retall <- cbind(ret1, ret2, ret3)
+
+
+charts.PerformanceSummary(
+  retall, main="VISA - Naive v.s. RSI v.s. Combine",
+  colorset=rainbow12equal)
+
+
+n <- 14
+delta<-0.005
+price <- Cl(V)         
+r <- price/Lag(price) - 1    
+ema <- EMA(price, n) 
+signal <-c()    # first signal is NA
+signal[1:n] <-0
+
+
+# Generate Trading Signal
+for (i in (n+1):length(price)){
+    if (r[i] > delta){
+         signal[i]<- 1
+    } else if (ema[i] > 300){
+         signal[i]<- -1
+    } else
+         signal[i]<- 0
+}
+signal<-reclass(signal,price)
+
+## Apply Trading Rule
+trade4<- Lag(signal)
+ret4<-dailyReturn(V)*trade4 
+names(ret4) <- 'EMA'
+retall <- cbind(ret4, ret2,ret3)
+
+
+charts.PerformanceSummary(
+  retall, main="VISA - RSI v.s. EMA v.s. Combine",
+  colorset= redfocus)
+
+
+```
+
+
+# Walmart
+```{r}
+#get data
+getSymbols("WMT",from='2011-01-01',to='2021-12-31')
+
+#SMA
+chartSeries(WMT,
+            theme=chartTheme('white'))
+addSMA(n=100,on=1,col = "blue")
+addSMA(n=300,on=1,col = "red")
+
+#EMA
+chartSeries(WMT,
+            theme=chartTheme('white'))
+addEMA(n=100,on=1,col = "blue")
+addEMA(n=300,on=1,col = "red")
+
+#BBands
+chartSeries(WMT,
+            theme=chartTheme('white'))
+addBBands(n=100,sd=2)
+
+#ROC
+chartSeries(WMT,
+            theme = chartTheme("white"))
+addROC(n=20)
+
+#MACD
+chartSeries(WMT,
+            theme = chartTheme("white"))
+addMACD(fast=12,slow=26,signal=9,type="EMA")
+
+#RSI
+chartSeries(WMT,
+            theme = chartTheme("white"))
+addRSI(n=14,maType="EMA")
+
+
+
+#generate buying signal based on filter rule
+price <- Cl(WMT) # close price
+r <- price/Lag(price) - 1 # % price change
+delta <-0.005 #threshold
+signal <-c(0) # first date has no signal
+
+#Loop over all trading days (except the first)
+for (i in 2: length(price)){
+  if (r[i] > delta){
+    signal[i]<- 1
+  } else
+    signal[i]<- 0
+}
+
+# Assign time to action variable using reclass;
+signal<-reclass(signal,price)
+
+# Charting with Trading rule
+chartSeries(WMT,
+            type = 'line',
+            theme=chartTheme('white'))
+addTA(signal,type='S',col='red')
+
+trade1 <- Lag(signal,1) # trade based on yesterday signal
+
+ret<-dailyReturn(WMT)*trade1
+names(ret)<-"filter"
+
+#Performance Summary
+charts.PerformanceSummary(ret, main="WALMART - Naive Buy Approach")
+
+
+
+#EMA
+day <-14
+price <- Cl(WMT)
+signal <- c()                    #initialize vector
+ema <- EMA(price, day)     #rsi is the lag of RSI
+signal [1:day+1] <- 0            #0 because no signal until day+1
+
+for (i in (day+1): length(price)){
+  if (ema[i] < 300){             #buy if rsi < 300
+    signal[i] <- 1
+  }else {                       #no trade all if rsi > 30
+    signal[i] <- 0
+  }
+}
+signal<-reclass(signal,Cl(WMT))
+trade2 <- Lag(signal)
+
+#construct a new variable ret1
+ret1 <- dailyReturn(WMT)*trade1
+names(ret1) <- 'Naive'
+# construct a new variable ret2
+ret2 <- dailyReturn(WMT)*trade2
+names(ret2) <- 'EMA'
+
+retall <- cbind(ret1, ret2)
+charts.PerformanceSummary(retall, 
+                          main="WALMART - Naive v.s. EMA")
+
+
+n <- 14
+delta<-0.005
+price <- Cl(WMT)         
+r <- price/Lag(price) - 1    
+ema <- EMA(price, n) 
+signal <-c()    # first signal is NA
+signal[1:n] <-0
+
+
+# Generate Trading Signal
+for (i in (n+1):length(price)){
+    if (r[i] > delta){
+         signal[i]<- 1
+    } else if (ema[i] > 300){
+         signal[i]<- -1
+    } else
+         signal[i]<- 0
+}
+signal<-reclass(signal,price)
+
+## Apply Trading Rule
+trade3 <- Lag(signal)
+ret3<-dailyReturn(WMT)*trade3 
+names(ret3) <- 'Combine'
+retall <- cbind(ret1, ret2, ret3)
+
+
+charts.PerformanceSummary(
+  retall, main="WALMART - Naive v.s. EMA v.s. Combine",
+  colorset= redfocus)
+```
+
+# 3M
+```{r}
+
+#get data
+getSymbols("MMM",from='2011-01-01',to='2021-12-31')
+
+#SMA
+chartSeries(MMM,
+            theme=chartTheme('white'))
+addSMA(n=100,on=1,col = "blue")
+addSMA(n=300,on=1,col = "red")
+
+#EMA
+chartSeries(MMM,
+            theme=chartTheme('white'))
+addEMA(n=100,on=1,col = "blue")
+addEMA(n=300,on=1,col = "red")
+
+#BBands
+chartSeries(MMM,
+            theme=chartTheme('white'))
+addBBands(n=100,sd=2)
+
+#ROC
+chartSeries(MMM,
+            theme = chartTheme("white"))
+addROC(n=20)
+
+#MACD
+chartSeries(MMM,
+            theme = chartTheme("white"))
+addMACD(fast=12,slow=26,signal=9,type="EMA")
+
+#RSI
+chartSeries(MMM,
+            theme = chartTheme("white"))
+addRSI(n=14,maType="EMA")
+
+
+
+#generate buying signal based on filter rule
+price <- Cl(MMM) # close price
+r <- price/Lag(price) - 1 # % price change
+delta <-0.005 #threshold
+signal <-c(0) # first date has no signal
+
+#Loop over all trading days (except the first)
+for (i in 2: length(price)){
+  if (r[i] > delta){
+    signal[i]<- 1
+  } else
+    signal[i]<- 0
+}
+
+
+# Each data is not attached with time
+head(signal, n=3)
+
+# Assign time to action variable using reclass;
+signal<-reclass(signal,price)
+
+# Each point is now attached with time
+tail(signal, n=3)
+
+# Charting with Trading rule
+chartSeries(MMM,
+            type = 'line',
+            theme=chartTheme('white'))
+addTA(signal,type='S',col='red')
+
+trade1 <- Lag(signal,1) # trade based on yesterday signal
+
+ret<-dailyReturn(MMM)*trade1
+names(ret)<-"filter"
+
+#Performance Summary
+charts.PerformanceSummary(ret, main="3M - Naive Buy Rule")
+
+
+
+#RSI
+day <-14
+price <- Cl(MMM)
+signal <- c()                    #initialize vector
+ema <- RSI(price, day)     #rsi is the lag of RSI
+signal [1:day+1] <- 0            #0 because no signal until day+1
+
+for (i in (day+1): length(price)){
+  if (rsi[i] < 30){             #buy if rsi < 30
+    signal[i] <- 1
+  }else {                       #no trade all if rsi > 30
+    signal[i] <- 0
+  }
+}
+signal<-reclass(signal,Cl(MMM))
+trade2 <- Lag(signal)
+
+#construct a new variable ret1
+ret1 <- dailyReturn(MMM)*trade1
+names(ret1) <- 'Naive'
+# construct a new variable ret2
+ret2 <- dailyReturn(MMM)*trade2
+names(ret2) <- 'RSI'
+
+retall <- cbind(ret1, ret2)
+charts.PerformanceSummary(retall, 
+                          main="3M - Naive v.s. RSI")
+
+
+n <- 14
+delta<-0.005
+price <- Cl(MMM)         
+r <- price/Lag(price) - 1    
+rsi <- RSI(price, n) 
+signal <-c()    # first signal is NA
+signal[1:n] <-0
+
+
+# Generate Trading Signal
+for (i in (n+1):length(price)){
+    if (r[i] > delta){
+         signal[i]<- 1
+    } else if (rsi[i] > 70){
+         signal[i]<- -1
+    } else
+         signal[i]<- 0
+}
+signal<-reclass(signal,price)
+
+## Apply Trading Rule
+trade3 <- Lag(signal)
+ret3<-dailyReturn(MMM)*trade3 
+names(ret3) <- 'Combine'
+retall <- cbind(ret1, ret2, ret3)
+
+
+charts.PerformanceSummary(
+  retall, main="3M - Naive v.s. RSI v.s. Combine",
+  colorset=rainbow8equal)
+
+```
+```{r}
+#get data
+getSymbols("NKE",from='2011-01-01',to='2021-12-31')
+
+#SMA
+chartSeries(NKE,
+            theme=chartTheme('white'))
+addSMA(n=100,on=1,col = "blue")
+addSMA(n=300,on=1,col = "red")
+
+#EMA
+chartSeries(NKE,
+            theme=chartTheme('white'))
+addEMA(n=100,on=1,col = "blue")
+addEMA(n=300,on=1,col = "red")
+
+#BBands
+chartSeries(NKE,
+            theme=chartTheme('white'))
+addBBands(n=100,sd=2)
+
+#ROC
+chartSeries(NKE,
+            theme = chartTheme("white"))
+addROC(n=20)
+
+#MACD
+chartSeries(NKE,
+            theme = chartTheme("white"))
+addMACD(fast=12,slow=26,signal=9,type="EMA")
+
+#RSI
+chartSeries(NKE,
+            theme = chartTheme("white"))
+addRSI(n=14,maType="EMA")
+
+
+
+#generate buying signal based on filter rule
+price <- Cl(NKE) # close price
+r <- price/Lag(price) - 1 # % price change
+delta <-0.005 #threshold
+signal <-c(0) # first date has no signal
+
+#Loop over all trading days (except the first)
+for (i in 2: length(price)){
+  if (r[i] > delta){
+    signal[i]<- 1
+  } else
+    signal[i]<- 0
+}
+
+
+# Each data is not attached with time
+head(signal, n=3)
+
+# Assign time to action variable using reclass;
+signal<-reclass(signal,price)
+
+# Each point is now attached with time
+tail(signal, n=3)
+
+# Charting with Trading rule
+chartSeries(NKE,
+            type = 'line',
+            theme=chartTheme('white'))
+addTA(signal,type='S',col='red')
+
+trade1 <- Lag(signal,1) # trade based on yesterday signal
+
+ret<-dailyReturn(NKE)*trade1
+names(ret)<-"filter"
+
+#Performance Summary
+charts.PerformanceSummary(ret, main="NIKE - Naive Buy Rule")
+
+
+
+#EMA
+day <-14
+price <- Cl(NKE)
+signal <- c()                    #initialize vector
+ema <- EMA(price, day)     #rsi is the lag of RSI
+signal [1:day+1] <- 0            #0 because no signal until day+1
+
+for (i in (day+1): length(price)){
+  if (ema[i] < 300){             #buy if rsi < 300
+    signal[i] <- 1
+  }else {                       #no trade all if rsi > 30
+    signal[i] <- 0
+  }
+}
+signal<-reclass(signal,Cl(NKE))
+trade2 <- Lag(signal)
+
+#construct a new variable ret1
+ret1 <- dailyReturn(NKE)*trade1
+names(ret1) <- 'Naive'
+# construct a new variable ret2
+ret2 <- dailyReturn(NKE)*trade2
+names(ret2) <- 'EMA'
+
+retall <- cbind(ret1, ret2)
+charts.PerformanceSummary(retall, 
+                          main="NIKE - Naive v.s. EMA")
+
+
+n <- 14
+delta<-0.005
+price <- Cl(NKE)         
+r <- price/Lag(price) - 1    
+ema <- EMA(price, n) 
+signal <-c()    # first signal is NA
+signal[1:n] <-0
+
+
+# Generate Trading Signal
+for (i in (n+1):length(price)){
+    if (r[i] > delta){
+         signal[i]<- 1
+    } else if (ema[i] > 70){
+         signal[i]<- -1
+    } else
+         signal[i]<- 0
+}
+signal<-reclass(signal,price)
+
+## Apply Trading Rule
+trade3 <- Lag(signal)
+ret3<-dailyReturn(NKE)*trade3 
+names(ret3) <- 'Combine'
+retall <- cbind(ret1, ret2, ret3)
+
+
+charts.PerformanceSummary(
+  retall, main="NIKE - Naive v.s. RSI v.s. Combine",
+  colorset=bluefocus)
+
+```
+
+
+
+```{r}
+#get data
+getSymbols("MSFT",from='2011-01-01',to='2021-12-31')
+
+#SMA
+chartSeries(MSFT,
+            theme=chartTheme('white'))
+addSMA(n=100,on=1,col = "blue")
+addSMA(n=300,on=1,col = "red")
+
+#EMA
+chartSeries(MSFT,
+            theme=chartTheme('white'))
+addEMA(n=100,on=1,col = "blue")
+addEMA(n=300,on=1,col = "red")
+
+#BBands
+chartSeries(MSFT,
+            theme=chartTheme('white'))
+addBBands(n=100,sd=2)
+
+#ROC
+chartSeries(MSFT,
+            theme = chartTheme("white"))
+addROC(n=20)
+
+#MACD
+chartSeries(MSFT,
+            theme = chartTheme("white"))
+addMACD(fast=12,slow=26,signal=9,type="EMA")
+
+#RSI
+chartSeries(MSFT,
+            theme = chartTheme("white"))
+addRSI(n=14,maType="EMA")
+
+
+
+#generate buying signal based on filter rule
+price <- Cl(MSFT) # close price
+r <- price/Lag(price) - 1 # % price change
+delta <-0.005 #threshold
+signal <-c(0) # first date has no signal
+
+#Loop over all trading days (except the first)
+for (i in 2: length(price)){
+  if (r[i] > delta){
+    signal[i]<- 1
+  } else
+    signal[i]<- 0
+}
+
+# Assign time to action variable using reclass;
+signal<-reclass(signal,price)
+
+# Charting with Trading rule
+chartSeries(MSFT,
+            type = 'line',
+            theme=chartTheme('white'))
+addTA(signal,type='S',col='red')
+
+trade1 <- Lag(signal,1) # trade based on yesterday signal
+
+ret<-dailyReturn(MSFT)*trade1
+names(ret)<-"filter"
+
+#Performance Summary
+charts.PerformanceSummary(ret, main=" MICROSOFT - Naive Buy Approach")
+
+
+
+#RSI
+
+#RSI
+day <-14
+price <- Cl(MSFT)
+signal <- c()                    #initialize vector
+momt <- momentum(price, day)     #rsi is the lag of RSI
+signal [1:day+1] <- 0            #0 because no signal until day+1
+
+for (i in (day+1): length(price)){
+  if (momt[i] < 100){             #buy if rsi < 30
+    signal[i] <- 1
+  }else {                       #no trade all if rsi > 30
+    signal[i] <- 0
+  }
+}
+signal<-reclass(signal,Cl(MSFT))
+trade2 <- Lag(signal)
+
+#construct a new variable ret1
+ret1 <- dailyReturn(MSFT)*trade1
+names(ret1) <- 'Naive'
+# construct a new variable ret2
+ret2 <- dailyReturn(MSFT)*trade2
+names(ret2) <- 'Momentum'
+
+retall <- cbind(ret1, ret2)
+charts.PerformanceSummary(retall, 
+                          main="MICROSOFT - Naive v.s. Momentum")
+
+
+n <- 14
+delta<-0.005
+price <- Cl(MSFT)         
+r <- price/Lag(price) - 1    
+momt <- momentum(price, n) 
+signal <-c()    # first signal is NA
+signal[1:n] <-0
+
+# Generate Trading Signal
+for (i in (n+1):length(price)){
+    if (r[i] > delta){
+         signal[i]<- 1
+    } else if (momt[i] > 70){
+         signal[i]<- -1
+    } else
+         signal[i]<- 0
+}
+signal<-reclass(signal,price)
+
+## Apply Trading Rule
+trade3 <- Lag(signal)
+ret3<-dailyReturn(MSFT)*trade3 
+names(ret3) <- 'Combine'
+retall <- cbind(ret1, ret2, ret3)
+
+
+charts.PerformanceSummary(
+  retall, main="MICROSOFT - Naive v.s. Momentum v.s. Combine",
+  colorset=greenfocus)
+```
+
+
+
+```{r}
+#get data
+getSymbols("DOW",from='2011-01-01',to='2021-12-31')
+
+#SMA
+chartSeries(DOW,
+            theme=chartTheme('white'))
+addSMA(n=100,on=1,col = "blue")
+addSMA(n=300,on=1,col = "red")
+
+#EMA
+chartSeries(DOW,
+            theme=chartTheme('white'))
+addEMA(n=100,on=1,col = "blue")
+addEMA(n=300,on=1,col = "red")
+
+#BBands
+chartSeries(DOW,
+            theme=chartTheme('white'))
+addBBands(n=100,sd=2)
+
+#ROC
+chartSeries(DOW,
+            theme = chartTheme("white"))
+addROC(n=20)
+
+#MACD
+chartSeries(DOW,
+            theme = chartTheme("white"))
+addMACD(fast=12,slow=26,signal=9,type="EMA")
+
+#RSI
+chartSeries(DOW,
+            theme = chartTheme("white"))
+addRSI(n=14,maType="EMA")
+
+
+
+#generate buying signal based on filter rule
+price <- Cl(DOW) # close price
+r <- price/Lag(price) - 1 # % price change
+delta <-0.005 #threshold
+signal <-c(0) # first date has no signal
+
+#Loop over all trading days (except the first)
+for (i in 2: length(price)){
+  if (r[i] > delta){
+    signal[i]<- 1
+  } else
+    signal[i]<- 0
+}
+
+# Assign time to action variable using reclass;
+signal<-reclass(signal,price)
+
+# Charting with Trading rule
+chartSeries(DOW,
+            type = 'line',
+            theme=chartTheme('white'))
+addTA(signal,type='S',col='red')
+
+trade1 <- Lag(signal,1) # trade based on yesterday signal
+
+ret<-dailyReturn(DOW)*trade1
+names(ret)<-"filter"
+
+#Performance Summary
+charts.PerformanceSummary(ret, main="DOW - Naive Buy Approach")
+
+
+
+#RSI
+day <-14
+price <- Cl(DOW)
+signal <- c()                    #initialize vector
+momt <- momentum(price, day)     #rsi is the lag of RSI
+signal [1:day+1] <- 0            #0 because no signal until day+1
+
+for (i in (day+1): length(price)){
+  if (momt[i] < 100){             #buy if rsi < 30
+    signal[i] <- 1
+  }else {                       #no trade all if rsi > 30
+    signal[i] <- 0
+  }
+}
+signal<-reclass(signal,Cl(DOW))
+trade2 <- Lag(signal)
+
+#construct a new variable ret1
+ret1 <- dailyReturn(DOW)*trade1
+names(ret1) <- 'Naive'
+# construct a new variable ret2
+ret2 <- dailyReturn(DOW)*trade2
+names(ret2) <- 'Momentum'
+
+retall <- cbind(ret1, ret2)
+charts.PerformanceSummary(retall, 
+                          main="DOW - Naive v.s. Momentum")
+
+
+n <- 14
+delta<-0.005
+price <- Cl(DOW)         
+r <- price/Lag(price) - 1    
+momt <- momentum(price, n) 
+signal <-c()    # first signal is NA
+signal[1:n] <-0
+
+# Generate Trading Signal
+for (i in (n+1):length(price)){
+    if (r[i] > delta){
+         signal[i]<- 1
+    } else if (momt[i] > 100){
+         signal[i]<- -1
+    } else
+         signal[i]<- 0
+}
+signal<-reclass(signal,price)
+
+## Apply Trading Rule
+trade3 <- Lag(signal)
+ret3<-dailyReturn(DOW)*trade3 
+names(ret3) <- 'Combine'
+retall <- cbind(ret1, ret2, ret3)
+
+
+charts.PerformanceSummary(
+  retall, main="Naive v.s. Momentum v.s. Combine",
+  colorset=rainbow12equal)
+```
+
